@@ -3,38 +3,22 @@
  */
 package monitoring
 
-import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics
 import java.io.BufferedReader
 import java.io.FileReader
-import java.time.Instant
+import java.nio.file.FileSystems
 
 fun main(args: Array<String>) {
-    val bufferedReader = BufferedReader(FileReader("/Users/mr/projects/monitoring/sample_csv.txt"))
-    readFile(bufferedReader)
-    println()
-}
+    val bufferedReader = BufferedReader(
+        FileReader(
+            FileSystems.getDefault().getPath(args[0]).normalize().toAbsolutePath().toString()
+        )
+    )
 
-fun readFile(bufferedReader: BufferedReader) {
-    val header = bufferedReader.readLine()
-    var line = bufferedReader.readLine()
-    var initTimestamp: Instant? = null
-    val statistics = DescriptiveStatistics()
+    val threshold = if (args.size > 1) {
+        Integer.parseInt(args[1])
+    } else 10
 
-    while (line != null) {
-        val httpLog = HttpLogParser.parse(line)
-        initTimestamp = initTimestamp ?: httpLog.date
-        val httpLogs = mutableSetOf<HttpLog>()
-        if (httpLog.date.epochSecond - initTimestamp.epochSecond >= 10) {
-            println(generateStatistics(httpLogs, initTimestamp))
-            initTimestamp = httpLog.date
-        }
-        httpLogs.clear()
-        httpLogs.add(httpLog)
-        line = bufferedReader.readLine()
-    }
-}
+    val dataRepository = DataRepository()
 
-fun generateStatistics(httpLogs: MutableSet<HttpLog>, initTimestamp: Instant): String {
-    val sectionMapping: Map<String, List<HttpLog>> = httpLogs.groupBy { it.section }
-    return "$initTimestamp :" + sectionMapping
+    HttpLogMonitor(dataRepository, bufferedReader).handleLogs(threshold)
 }

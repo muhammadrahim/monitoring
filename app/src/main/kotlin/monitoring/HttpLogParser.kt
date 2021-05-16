@@ -1,5 +1,7 @@
 package monitoring
 
+import monitoring.domain.HttpLog
+import monitoring.domain.Request
 import java.time.Instant
 
 object HttpLogParser {
@@ -13,17 +15,23 @@ object HttpLogParser {
     fun parse(line: String): HttpLog {
         val tokens = line.split(",")
         val date = Instant.ofEpochSecond(tokens[DATE].toLong())
-        val request = tokens[REQUEST]
-        val section = request.split(" ")[1].split('/')[1]
+        val request = buildRequest(tokens)
 
         return HttpLog(
-            tokens[REMOTE_HOST].substring(1, tokens[REMOTE_HOST].length - 1),
-            tokens[AUTH_USER].substring(1, tokens[AUTH_USER].length - 1),
+            tokens[REMOTE_HOST].removeSurrounding(delimiter = "\""),
+            tokens[AUTH_USER].removeSurrounding(delimiter = "\""),
             date,
-            request.substring(1, request.length - 1),
+            request,
             Integer.parseInt(tokens[STATUS]),
             Integer.parseInt(tokens[BYTES]),
-            section
         )
+    }
+
+    private fun buildRequest(tokens: List<String>): Request {
+        val request = tokens[REQUEST].removeSurrounding(delimiter = "\"").split(" ")
+        val httpVerb = request[0]
+        val httpResource = request[1].split('/')
+
+        return Request(httpVerb, "/${httpResource[1]}")
     }
 }
